@@ -1,10 +1,40 @@
+from collections import OrderedDict, namedtuple
 import os
-import time
+import re
 import subprocess
 import stat
 import sys
+import time
 
 import perf
+
+STAT_FIELDS = ('usr', 'sys', 'wall', 'ggc')
+class Stats(namedtuple('Stats', STAT_FIELDS)):
+    """
+    A line of output from -ftime-report
+    """
+    pass
+
+class TimeReport:
+    """
+    The parsed output from -ftime-report
+    For now, we just capture the "TOTAL" line, as a
+    Stats instance.
+    """
+    def __repr__(self):
+        return 'TimeReport(total=%r)' % (self.total,)
+
+    @classmethod
+    def from_stderr(cls, err):
+        tr = TimeReport()
+        for line in err.splitlines():
+            ws = r'\s+'
+            timing = r'([0-9]+.[0-9]+)'
+            m = re.match(r'^ TOTAL' + ws + ':' + 3 * (ws + timing) + ws + r'([0-9]+) kB$', line)
+            if m:
+                stats = Stats(*[float(f) for f in m.groups()])
+                tr.total = stats
+        return tr
 
 class Peer:
     """
@@ -71,16 +101,61 @@ def compare_wallclock(control_path, experiment_path, binary_name, args,
                                       options)
     return result
 
-#args = '-c test-sources/kdecore.cc -g'.split()
-args = '-c test-sources/empty.c -g'.split()
-#args = '-c test-sources/big-code.c -g'.split()
-#args = '-c test-sources/influence.i -g'.split()
+def compare_memory(control_path, experiment_path, binary_name, args,
+                   num_iters=3):
+    """
+    Take a pair of paths to gcc builds, and a set of other gcc args.
+    Return a perf.MemoryUsageResult instance
+    """
+    control = Peer('control', control_path)
+    experiment = Peer('experiment', experiment_path)
 
-#TODO: capture memory usage etc
+    data = []
+    for peer in [control, experiment]:
+        peer.strip_binaries()
+        data.append([])
+
+    print('compare_memory: %s %r' % (binary_name, ' '.join(args)))
+    for iter_idx in range(num_iters):
+        for peer_idx, peer in enumerate([control, experiment]):
+            sys.stdout.write('iteration %i: %s: %s %r: '
+                             % (iter_idx, peer.name, binary_name, ' '.join(args)))
+            actual_args = [peer.get_binary(binary_name), '-B', peer.path] + args
+            actual_args.append('-ftime-report')
+            #print(actual_args)
+            p = subprocess.Popen(actual_args, stderr=subprocess.PIPE)
+            out, err = p.communicate()
+            time_report = TimeReport.from_stderr(err)
+            total_ggc = time_report.total.ggc
+            sys.stdout.write('total_ggc: %r KB\n' % total_ggc)
+            data[peer_idx].append(total_ggc)
+
+    options = Options('Total ggc memory usage for %s %s'
+                      % (binary_name, ' '.join(args)))
+    result = perf.CompareMemoryUsage(data[0],
+                                     data[1],
+                                     options)
+    return result
+
 #TODO: capture just the parsing phase
 
 if __name__ == '__main__':
     control_path = sys.argv[1]
     experiment_path = sys.argv[2]
-    result = compare_wallclock(control_path, experiment_path, 'xgcc', args)
-    print(result)
+    args_list = [#'-c test-sources/kdecore.cc -g',
+                 '-c test-sources/empty.c -g',
+                 #'-c test-sources/big-code.c -g',
+                 #'-c test-sources/influence.i -g'
+    ]
+    for args_str in args_list:
+        for opt in ['-O0', '-O1', '-O2', '-O3', '-Os']:
+            args = args_str.split()
+            args.append(opt)
+
+            result = compare_wallclock(control_path, experiment_path,
+                                       'xgcc', args)
+            print(result)
+
+            result = compare_memory(control_path, experiment_path,
+                                       'xgcc', args)
+            print(result)
