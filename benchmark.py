@@ -143,14 +143,16 @@ def compare_memory(control_path, experiment_path, binary_name, args,
 
 #TODO: capture just the parsing phase
 
-if __name__ == '__main__':
+
+def main():
     control_path = sys.argv[1]
     experiment_path = sys.argv[2]
-    args_list = [#'-c test-sources/kdecore.cc -g',
-                 '-c test-sources/empty.c -g',
-                 #'-c test-sources/big-code.c -g',
-                 #'-c test-sources/influence.i -g'
+    args_list = ['-S test-sources/kdecore.cc -g',
+                 '-S test-sources/empty.c -g',
+                 '-S test-sources/big-code.c -g',
+                 '-S test-sources/influence.i -g'
     ]
+    t1 = time.time()
     for args_str in args_list:
         for opt in ['-O0', '-O1', '-O2', '-O3', '-Os']:
             args = args_str.split()
@@ -159,7 +161,16 @@ if __name__ == '__main__':
             result = compare_wallclock(control_path, experiment_path,
                                        'xgcc', args)
             print(result)
+            print('\n')
 
             result = compare_memory(control_path, experiment_path,
                                        'xgcc', args)
             print(result)
+            print('\n')
+
+    t2 = time.time()
+    time_taken = t2 - t1
+    print('total time taken: %r' % time_taken)
+
+if __name__ == '__main__':
+    main()
