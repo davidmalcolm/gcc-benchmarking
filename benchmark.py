@@ -67,6 +67,14 @@ class Options:
         self.control_label = 'control'
         self.experiment_label = 'experiment'
 
+def make_test_name(binary_name, args):
+    test_name = binary_name
+    for arg in args:
+        if '/' in arg:
+            arg = os.path.basename(arg)
+        test_name += ' %s' % arg
+    return test_name
+
 def compare_wallclock(control_path, experiment_path, binary_name, args,
                       num_iters=10):
     """
@@ -81,11 +89,13 @@ def compare_wallclock(control_path, experiment_path, binary_name, args,
         peer.strip_binaries()
         data.append([])
 
-    print('compare_wallclock: %s %r' % (binary_name, ' '.join(args)))
+    test_name = make_test_name(binary_name, args)
+
+    print('compare_wallclock: %s' % test_name)
     for iter_idx in range(num_iters):
         for peer_idx, peer in enumerate([control, experiment]):
-            sys.stdout.write('  iteration %i: %s: %s %r: '
-                             % (iter_idx, peer.name, binary_name, ' '.join(args)))
+            sys.stdout.write('  iteration %i: %s: %s: '
+                             % (iter_idx, peer.name, test_name))
             sys.stdout.flush()
             actual_args = [peer.get_binary(binary_name), '-B', peer.path] + args
             t1 = time.time()
@@ -96,8 +106,7 @@ def compare_wallclock(control_path, experiment_path, binary_name, args,
             sys.stdout.flush()
             data[peer_idx].append(time_taken)
 
-    options = Options('Wallclock time for %s %s'
-                      % (binary_name, ' '.join(args)))
+    options = Options('Wallclock time for %s' % test_name)
     result = perf.CompareMultipleRuns(data[0],
                                       data[1],
                                       options)
@@ -117,11 +126,13 @@ def compare_memory(control_path, experiment_path, binary_name, args,
         peer.strip_binaries()
         data.append([])
 
-    print('compare_memory: %s %r' % (binary_name, ' '.join(args)))
+    test_name = make_test_name(binary_name, args)
+
+    print('compare_memory: %s' % test_name)
     for iter_idx in range(num_iters):
         for peer_idx, peer in enumerate([control, experiment]):
-            sys.stdout.write('  iteration %i: %s: %s %r: '
-                             % (iter_idx, peer.name, binary_name, ' '.join(args)))
+            sys.stdout.write('  iteration %i: %s: %s: '
+                             % (iter_idx, peer.name, test_name))
             sys.stdout.flush()
             actual_args = [peer.get_binary(binary_name), '-B', peer.path] + args
             actual_args.append('-ftime-report')
@@ -134,8 +145,8 @@ def compare_memory(control_path, experiment_path, binary_name, args,
             sys.stdout.flush()
             data[peer_idx].append(total_ggc)
 
-    options = Options('Total ggc memory usage for %s %s'
-                      % (binary_name, ' '.join(args)))
+    options = Options('Total ggc memory usage for %s'
+                      % test_name)
     result = perf.CompareMemoryUsage(data[0],
                                      data[1],
                                      options)
