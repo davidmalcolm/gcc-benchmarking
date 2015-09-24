@@ -15,25 +15,35 @@ class Stats(namedtuple('Stats', STAT_FIELDS)):
     """
     pass
 
-class TimeReport:
+class TimeReport(OrderedDict):
     """
-    The parsed output from -ftime-report
-    For now, we just capture the "TOTAL" line, as a
-    Stats instance.
+    The parsed output from -ftime-report, as an ordered mapping from
+    names to Stats instances.
     """
-    def __repr__(self):
-        return 'TimeReport(total=%r)' % (self.total,)
-
     @classmethod
     def from_stderr(cls, err):
         tr = TimeReport()
         for line in err.splitlines():
             ws = r'\s+'
             timing = r'([0-9]+.[0-9]+)'
+            percent = r'.+'
+            # e.g. "phase setup             :   0.00 ( 0%) usr   0.00 ( 0%) sys   0.00 ( 0%) wall    1077 kB (91%) ggc"
+            m = re.match(r'^ (.*)' + ws + ':'
+                         + ws + timing + percent + 'usr'
+                         + ws + timing + percent + 'sys'
+                         + ws + timing + percent + 'wall'
+                         + ws + r'([0-9]+) kB' + percent + 'ggc',
+                         line)
+            if m:
+                stats = Stats(*[float(f) for f in m.groups()[1:]])
+                name = m.group(1).strip()
+                tr[name] = stats
+
+            # e.g. "TOTAL                 :   0.00             0.00             0.00               1189 kB"
             m = re.match(r'^ TOTAL' + ws + ':' + 3 * (ws + timing) + ws + r'([0-9]+) kB$', line)
             if m:
                 stats = Stats(*[float(f) for f in m.groups()])
-                tr.total = stats
+                tr['TOTAL'] = stats
         return tr
 
 class Peer:
@@ -140,7 +150,7 @@ def compare_memory(control_path, experiment_path, binary_name, args,
             p = subprocess.Popen(actual_args, stderr=subprocess.PIPE)
             out, err = p.communicate()
             time_report = TimeReport.from_stderr(err)
-            total_ggc = time_report.total.ggc
+            total_ggc = time_report['TOTAL'].ggc
             sys.stdout.write('total_ggc: %r KB\n' % total_ggc)
             sys.stdout.flush()
             data[peer_idx].append(total_ggc)
