@@ -84,14 +84,16 @@ def compare_wallclock(control_path, experiment_path, binary_name, args,
     print('compare_wallclock: %s %r' % (binary_name, ' '.join(args)))
     for iter_idx in range(num_iters):
         for peer_idx, peer in enumerate([control, experiment]):
-            sys.stdout.write('iteration %i: %s: %s %r: '
+            sys.stdout.write('  iteration %i: %s: %s %r: '
                              % (iter_idx, peer.name, binary_name, ' '.join(args)))
+            sys.stdout.flush()
             actual_args = [peer.get_binary(binary_name), '-B', peer.path] + args
             t1 = time.time()
             subprocess.call(actual_args)
             t2 = time.time()
             time_taken = t2 - t1
             sys.stdout.write('time_taken: %r\n' % time_taken)
+            sys.stdout.flush()
             data[peer_idx].append(time_taken)
 
     options = Options('Wallclock time for %s %s'
@@ -118,8 +120,9 @@ def compare_memory(control_path, experiment_path, binary_name, args,
     print('compare_memory: %s %r' % (binary_name, ' '.join(args)))
     for iter_idx in range(num_iters):
         for peer_idx, peer in enumerate([control, experiment]):
-            sys.stdout.write('iteration %i: %s: %s %r: '
+            sys.stdout.write('  iteration %i: %s: %s %r: '
                              % (iter_idx, peer.name, binary_name, ' '.join(args)))
+            sys.stdout.flush()
             actual_args = [peer.get_binary(binary_name), '-B', peer.path] + args
             actual_args.append('-ftime-report')
             #print(actual_args)
@@ -128,6 +131,7 @@ def compare_memory(control_path, experiment_path, binary_name, args,
             time_report = TimeReport.from_stderr(err)
             total_ggc = time_report.total.ggc
             sys.stdout.write('total_ggc: %r KB\n' % total_ggc)
+            sys.stdout.flush()
             data[peer_idx].append(total_ggc)
 
     options = Options('Total ggc memory usage for %s %s'
