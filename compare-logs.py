@@ -17,10 +17,10 @@ class BenchmarkLog:
                 stat = m.groups()
                 if stat[1].startswith("xgcc '"):
                     stat = stat[0], 'xgcc %s' % stat[1][6:-1]
-            m = re.match('Min: (.+)', line)
+            m = re.match('Min: (.+) -> (.+): .*', line)
             if m:
                 #print('MATCH: %r' % (m.groups(), ))
-                min_ = m.group(1)
+                min_ = m.groups()
                 r[stat] = min_
             #m = re.match('Avg: (.+)', line)
             #if m:
@@ -60,20 +60,34 @@ def read_logs():
                              'bmark-v2-plus-adhoc-ranges-for-tokens.txt'))
     logs.append(BenchmarkLog('v2+packed+ranges',
                              'bmark-v2-plus-compressed-ranges.txt'))
+    logs.append(BenchmarkLog('v2+packed+ranges+20151021',
+                             'bmark-v2-plus-compressed-ranges-v2.txt'))
+    logs.append(BenchmarkLog('v2+packed+ranges+cp+20151110',
+                             'bmark-v2-with-cp-expr-ranges.txt'))
     return logs
 
 logs = read_logs()
+titles = [log.title for log in logs]
+headers=['', 'Control'] + titles
 
 print("Minimal wallclock time (s) over 10 iterations")
+print("  (each experiment's % change is relative to 10 iterations of control interleaved with that experiment)")
 data = []
 for k, v in logs[0].iter_wallclock_items():
-    line = [k[1][8:], v]
-    for log in logs[1:]:
-        line.append(log.get_result(k))
+    line = [k[1][8:]]
+    control = float(v[0])
+    line.append(control)
+    for log in logs:
+        result = log.get_result(k)
+        # We have a (control, experiment) pair of stringified floats;
+        # get experiment:
+        local_control = float(result[0])
+        experiment = float(result[1])
+        line.append('%s (%s)'
+                    % (experiment,
+                       percent_change(experiment, local_control)))
     data.append(line)
-print(tabulate(data,
-               headers=[''] + ['Control -> %s'
-                               % log.title for log in logs]))
+print(tabulate(data, headers=headers))
 print('\n')
 
 print("Maximal ggc memory (kb)")
@@ -91,6 +105,5 @@ for k, v in logs[0].iter_memory_items():
                     % (int(result),
                        percent_change(result, control)))
     data.append(line)
-titles = [log.title for log in logs]
-print(tabulate(data, headers=['', 'Control'] + titles))
+print(tabulate(data, headers=headers))
 print('\n')
