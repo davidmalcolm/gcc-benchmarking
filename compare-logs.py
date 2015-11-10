@@ -58,11 +58,11 @@ def read_logs():
                              'bmark-v2.txt'))
     logs.append(BenchmarkLog('v2+every+token',
                              'bmark-v2-plus-adhoc-ranges-for-tokens.txt'))
-    logs.append(BenchmarkLog('v2+packed+ranges',
+    logs.append(BenchmarkLog('packed+ranges-1',
                              'bmark-v2-plus-compressed-ranges.txt'))
-    logs.append(BenchmarkLog('v2+packed+ranges+20151021',
+    logs.append(BenchmarkLog('packed+ranges-2',
                              'bmark-v2-plus-compressed-ranges-v2.txt'))
-    logs.append(BenchmarkLog('v2+packed+ranges+cp+20151110',
+    logs.append(BenchmarkLog('packed+ranges-2+cp',
                              'bmark-v2-with-cp-expr-ranges.txt'))
     return logs
 
